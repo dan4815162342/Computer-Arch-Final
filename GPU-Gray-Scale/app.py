@@ -1,11 +1,10 @@
 from flask import Flask, request, jsonify
 import os
-import time # Import time to create unique filenames
+import time 
 
 app = Flask(__name__)
 
-# This is the path *inside the container* where our storage is mounted
-# (as defined in demo-3-grayscale-receiver.yaml)
+# Save path for image from jetson 
 SAVE_PATH = "/app/storage" 
 
 # This route receives data from the Jetson
@@ -13,7 +12,7 @@ SAVE_PATH = "/app/storage"
 def receive_data():
     if request.data:
         try:
-            # Create a unique filename using the current time
+            # Create unique filename using the current time
             filename = f"received_image_{int(time.time())}.jpg"
             filepath = os.path.join(SAVE_PATH, filename)
             
@@ -21,7 +20,7 @@ def receive_data():
             with open(filepath, "wb") as f:
                 f.write(request.data)
             
-            # Print to the log for debugging
+            # Debugging
             print(f"--- Image Received from Jetson ---")
             print(f"Saved to: {filepath}")
             print(f"----------------------------------")
