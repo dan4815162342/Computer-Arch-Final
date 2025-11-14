@@ -1,37 +1,55 @@
 from flask import Flask, request, jsonify
+import os
+import time # Import time to create unique filenames
 
 app = Flask(__name__)
 
-# This app will store the last message it received
-last_message = "No data received yet."
+# This is the path *inside the container* where our storage is mounted
+# (as defined in demo-3-grayscale-receiver.yaml)
+SAVE_PATH = "/app/storage" 
 
 # This route receives data from the Jetson
 @app.route('/data', methods=['POST'])
 def receive_data():
-    global last_message
     if request.data:
-        data_str = request.data.decode('utf-8')
-        
-        # Store the received data
-        last_message = data_str
-        
-        # Print to the log for debugging
-        print(f"--- Grayscale Demo Data Received ---")
-        print(data_str)
-        print(f"------------------------------------")
-        
-        return "OK", 200
+        try:
+            # Create a unique filename using the current time
+            filename = f"received_image_{int(time.time())}.jpg"
+            filepath = os.path.join(SAVE_PATH, filename)
+            
+            # Get the raw bytes and write them to the file
+            with open(filepath, "wb") as f:
+                f.write(request.data)
+            
+            # Print to the log for debugging
+            print(f"--- Image Received from Jetson ---")
+            print(f"Saved to: {filepath}")
+            print(f"----------------------------------")
+            
+            return "OK", 200
+        except Exception as e:
+            print(f"Error saving file: {e}")
+            return "Error saving file", 500
     
     return "Invalid request. Please send data via POST.", 400
 
-# This route lets you see the last message in your browser
+# This route lets you see the list of saved files
 @app.route('/')
 def hello():
-    global last_message
+    try:
+        # Look inside our storage folder
+        files = os.listdir(SAVE_PATH)
+    except Exception as e:
+        files = [f"Error reading storage: {e}"]
+        
     return jsonify({
-        "message": "Hello from the Grayscale Receiver!",
-        "last_data_received": last_message
+        "message": "Hello from the Pi File Receiver!",
+        "storage_path": SAVE_PATH,
+        "files_in_storage": files
     })
 
 if __name__ == '__main__':
+    # Ensure the storage directory exists inside the container
+    if not os.path.exists(SAVE_PATH):
+        os.makedirs(SAVE_PATH)
     app.run(host='0.0.0.0', port=5000)
